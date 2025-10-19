@@ -1,0 +1,43 @@
+{
+  "name": "base-xmtp-xbt",
+  "version": "1.0.0",
+  "exports": "./dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node ./dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "check": "biome check --write .",
+    "format": "npx @biomejs/biome format --write ./src"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@xmtp/agent-sdk": "^1.1.2",
+    "@xmtp/content-type-group-updated": "^2.0.2",
+    "@xmtp/content-type-primitives": "^2.0.2",
+    "@xmtp/content-type-reaction": "^2.0.2",
+    "@xmtp/content-type-remote-attachment": "^2.0.2",
+    "@xmtp/content-type-reply": "^2.0.2",
+    "@xmtp/content-type-text": "^2.0.2",
+    "@xmtp/content-type-wallet-send-calls": "^2.0.0",
+    "@xmtp/node-bindings": "^1.5.3",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "pg": "^8.16.3",
+    "uint8arrays": "^5.1.0",
+    "viem": "^2.38.3",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.4",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.5.2",
+    "@types/pg": "^8.15.5",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.2",
+    "ultracite": "^5.4.5"
+  }
+}
