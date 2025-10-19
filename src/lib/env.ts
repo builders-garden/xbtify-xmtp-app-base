@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import { isHex } from "viem";
 import { z } from "zod";
 
 dotenv.config();
@@ -16,7 +17,13 @@ const envSchema = z.object({
 		.enum(["dev", "local", "production"])
 		.optional()
 		.default("production"),
-	XMTP_MNEMONIC: z.string().min(1),
+	XMTP_MNEMONIC: z.string().optional(),
+	XMTP_PRIVATE_KEY: z
+		.string()
+		.optional()
+		.refine((val) => val && isHex(val), {
+			message: "XMTP_PRIVATE_KEY must be a valid hex string",
+		}),
 	XMTP_DB_ENCRYPTION_KEY: z.string().optional(),
 	// Fix Railway volume mount path
 	RAILWAY_VOLUME_MOUNT_PATH: z.string().optional().default("."),

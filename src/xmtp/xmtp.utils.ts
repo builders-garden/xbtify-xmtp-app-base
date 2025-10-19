@@ -12,8 +12,14 @@ import { RemoteAttachmentCodec } from "@xmtp/content-type-remote-attachment";
 import { type Reply, ReplyCodec } from "@xmtp/content-type-reply";
 import { WalletSendCallsCodec } from "@xmtp/content-type-wallet-send-calls";
 import { fromString } from "uint8arrays";
-import { createWalletClient, http, toBytes } from "viem";
-import { mnemonicToAccount } from "viem/accounts";
+import {
+	type Account,
+	createWalletClient,
+	type Hex,
+	http,
+	toBytes,
+} from "viem";
+import { mnemonicToAccount, privateKeyToAccount } from "viem/accounts";
 import { base } from "viem/chains";
 import { XMTP_AGENTS } from "../lib/constants.js";
 import { env } from "../lib/env.js";
@@ -41,7 +47,15 @@ export const createXmtpAgent = async () => {
 			8,
 		)}.db3`;
 
-	const account = mnemonicToAccount(env.XMTP_MNEMONIC);
+	let account: Account | undefined;
+	if (env.XMTP_MNEMONIC) {
+		account = mnemonicToAccount(env.XMTP_MNEMONIC);
+	} else if (env.XMTP_PRIVATE_KEY) {
+		account = privateKeyToAccount(env.XMTP_PRIVATE_KEY as Hex);
+	}
+	if (!account) {
+		throw new Error("No account found");
+	}
 	const wallet = createWalletClient({
 		account,
 		chain: base,

@@ -5,6 +5,7 @@ type ProvisionInput = {
 	backendUrl: string;
 	backendApiKey: string;
 	xmtpMnemonic: string;
+	xmtpPrivateKey: string;
 	xmtpEnv: "dev" | "local" | "production";
 	xmtpDbKey?: string;
 };
@@ -28,6 +29,7 @@ async function provisionAgent(input: ProvisionInput) {
 			BACKEND_API_KEY: input.backendApiKey,
 			AGENT_FID: input.fid,
 			XMTP_MNEMONIC: input.xmtpMnemonic,
+			XMTP_PRIVATE_KEY: input.xmtpPrivateKey,
 			XMTP_ENV: input.xmtpEnv,
 			XMTP_DB_ENCRYPTION_KEY: input.xmtpDbKey ?? "",
 			RAILWAY_VOLUME_MOUNT_PATH: "/data",
@@ -129,6 +131,10 @@ async function main() {
 			arg("--backend-api-key") ?? process.env.BACKEND_API_KEY ?? usageAndExit();
 		const xmtpMnemonic =
 			arg("--xmtp-mnemonic") ?? process.env.XMTP_MNEMONIC ?? usageAndExit();
+		const xmtpPrivateKey =
+			arg("--xmtp-private-key") ??
+			process.env.XMTP_PRIVATE_KEY ??
+			usageAndExit();
 		const xmtpEnv = (arg("--xmtp-env") ??
 			process.env.XMTP_ENV ??
 			"production") as ProvisionInput["xmtpEnv"];
@@ -140,6 +146,7 @@ async function main() {
 			backendUrl,
 			backendApiKey,
 			xmtpMnemonic,
+			xmtpPrivateKey,
 			xmtpEnv,
 			xmtpDbKey,
 		});

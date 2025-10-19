@@ -13,11 +13,18 @@ app.post("/provision", async (req, res) => {
 			backendUrl,
 			backendApiKey,
 			xmtpMnemonic,
+			xmtpPrivateKey,
 			xmtpEnv = "production",
 			xmtpDbKey,
 		} = req.body ?? {};
 
-		if (!fid || !backendUrl || !backendApiKey || !xmtpMnemonic) {
+		if (
+			!fid ||
+			!backendUrl ||
+			!backendApiKey ||
+			(!xmtpMnemonic && !xmtpPrivateKey) ||
+			(xmtpMnemonic && xmtpPrivateKey)
+		) {
 			return res.status(400).json({ error: "Missing required fields" });
 		}
 
@@ -37,6 +44,7 @@ app.post("/provision", async (req, res) => {
 				BACKEND_API_KEY: backendApiKey,
 				AGENT_FID: String(fid),
 				XMTP_MNEMONIC: xmtpMnemonic,
+				XMTP_PRIVATE_KEY: xmtpPrivateKey,
 				XMTP_ENV: xmtpEnv,
 				XMTP_DB_ENCRYPTION_KEY: xmtpDbKey ?? "",
 				RAILWAY_VOLUME_MOUNT_PATH: "/data",
@@ -150,6 +158,7 @@ app.post("/webhook", async (req, res) => {
 			backendUrl,
 			backendApiKey,
 			xmtpMnemonic,
+			xmtpPrivateKey,
 			xmtpEnv = "production",
 			xmtpDbKey,
 		} = data ?? {};
@@ -173,6 +182,7 @@ app.post("/webhook", async (req, res) => {
 				BACKEND_API_KEY: String(backendApiKey),
 				AGENT_FID: String(fid),
 				XMTP_MNEMONIC: String(xmtpMnemonic),
+				XMTP_PRIVATE_KEY: String(xmtpPrivateKey),
 				XMTP_ENV: String(xmtpEnv),
 				XMTP_DB_ENCRYPTION_KEY: xmtpDbKey ? String(xmtpDbKey) : "",
 				RAILWAY_VOLUME_MOUNT_PATH: "/data",
