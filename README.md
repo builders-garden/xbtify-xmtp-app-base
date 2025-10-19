@@ -5,6 +5,15 @@ It uses the XMTP Agent SDK to create a basic agent that can be used to send and 
 
 It then hits the ai service to answer to dm and group messages.
 
+## What this service does
+
+- Creates an XMTP agent using `@xmtp/agent-sdk`, with codecs for replies, reactions, group updates, and remote attachments configured.
+- Subscribes to incoming messages and filters out non-user content (no content, from self, reactions) using `filter` helpers.
+- Adds a temporary "thinking" reaction via middleware, extracts the text from the message (including reply content), and forwards it to your AI backend endpoint: `POST {BACKEND_URL}/api/agent/{AGENT_FID}/ask` with the header `x-api-secret: {BACKEND_API_KEY}`.
+- Replies back in the same DM or group with the backend's `answer` when available.
+- Logs agent startup details and gracefully handles shutdown signals.
+- Persists the XMTP local database to a file named `{XMTP_ENV}-{inboxIdPrefix}.db3`. When `RAILWAY_VOLUME_MOUNT_PATH` is set (for example `/data`), the DB file is written there to allow persistence via a mounted volume.
+
 ## Prerequisites
 
 - Node.js 20+
@@ -12,6 +21,12 @@ It then hits the ai service to answer to dm and group messages.
 - nixpacks
 
 ## Kubernetes (Minikube) On-demand Provisioning
+
+### Provisioning plan (origin)
+
+- Goal: spin up one Pod per paying user, each isolated by its own Secret and PVC, running this repo's image.
+- Flow: payment success → backend provisioner creates Secret, PVC, Deployment → agent starts with user-specific env and persistent DB.
+- Components per user: Kubernetes Secret (runtime env), PVC (XMTP DB), Deployment (1 replica, mounts PVC at `/data`).
 
 ### Build image into Minikube
 
@@ -52,10 +67,13 @@ tsx src/provisioner/cli.ts delete --fid 12345
 
 ## Environment Variables
 
-- `BACKEND_URL`: The URL of the backend service
-- `BACKEND_API_KEY`: The API key to use for the backend service
-- `AGENT_FID`: The FID of the agent
-- `XMTP_MNEMONIC`: The mnemonic of the wallet to use for the agent
-- `XMTP_ENV`: The environment to use for the agent (local, dev, production)
-- `XMTP_DB_ENCRYPTION_KEY`: The encryption key to use for the agent
-- `RAILWAY_VOLUME_MOUNT_PATH`: The path to use for the agent
+- `BACKEND_URL` (required): Base URL of the AI backend (used by `src/index.ts`).
+- `BACKEND_API_KEY` (required): Shared secret sent as `x-api-secret` to the backend.
+- `AGENT_FID` (required): Agent FID used to build the `/api/agent/{fid}/ask` URL.
+- `XMTP_MNEMONIC` (required): 12/24-word mnemonic used to derive the XMTP signer.
+- `XMTP_ENV` (optional): `local` | `dev` | `production` (defaults to `production`).
+- `XMTP_DB_ENCRYPTION_KEY` (optional): Hex key to encrypt the local DB.
+- `RAILWAY_VOLUME_MOUNT_PATH` (optional): Directory for the DB file (e.g. `/data`).
+
+Notes:
+- The agent currently uses `XMTP_MNEMONIC` for signing. The provisioner supports injecting a private key as `XMTP_PRIVATE_KEY`, but the runtime agent code will only read `XMTP_MNEMONIC` unless updated.
