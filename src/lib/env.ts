@@ -8,6 +8,9 @@ const envSchema = z.object({
 	BACKEND_URL: z.url().min(1),
 	BACKEND_API_KEY: z.string().min(1),
 
+	// Fid for the agent
+	AGENT_FID: z.string().min(1),
+
 	// XMTP Agent
 	XMTP_ENV: z
 		.enum(["dev", "local", "production"])

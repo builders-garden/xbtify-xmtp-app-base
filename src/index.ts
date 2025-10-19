@@ -1,18 +1,13 @@
-import { filter, type Group } from "@xmtp/agent-sdk";
+import { filter } from "@xmtp/agent-sdk";
 import { logDetails } from "@xmtp/agent-sdk/debug";
+import type { AskResponse } from "./lib/backend.types.js";
 import { env } from "./lib/env.js";
 import { eyesReactionMiddleware } from "./xmtp/middlewares.js";
-import type {
-	GroupUpdatedMessage,
-	ThinkingReactionContext,
-} from "./xmtp/xmtp.types.js";
-import {
-	createXmtpAgent,
-	extractMessageContent,
-	getGroupUpdates,
-} from "./xmtp/xmtp.utils.js";
+import type { ThinkingReactionContext } from "./xmtp/xmtp.types.js";
+import { createXmtpAgent, extractMessageContent } from "./xmtp/xmtp.utils.js";
 
 async function main() {
+	const askAgentUrl = `${env.BACKEND_URL}/api/agent/${env.AGENT_FID}/ask`;
 	console.log("👽 BASIC XMTP XBT AGENT 🗿");
 
 	// Create agent using environment variables
@@ -44,98 +39,52 @@ async function main() {
 
 		await thinkingContext.helpers.addThinkingEmoji();
 
-		const conversationId = ctx.conversation.id;
-		const senderAddress = await ctx.getSenderAddress();
 		const messageContent = extractMessageContent(ctx.message);
 
 		// Handle DM messages
 		if (ctx.isDm()) {
 			console.log("Handling DM message");
-			const inboxId = ctx.conversation.peerInboxId;
-			const answer = await fetch(`${env.BACKEND_URL}/dm/reply`, {
+			const responseDm = await fetch(askAgentUrl, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
-					"x-api-key": env.BACKEND_API_KEY,
+					"x-api-secret": env.BACKEND_API_KEY,
 				},
 				body: JSON.stringify({
-					conversationId,
-					senderAddress,
-					inboxId,
-					message: messageContent,
+					question: messageContent,
 				}),
-			}).then(async (res) => await res.json());
+			});
 
-			if (answer.answer) {
-				await ctx.sendTextReply(answer.answer);
+			const answerDm = (await responseDm.json()) as AskResponse;
+			if (answerDm.status === "ok" && answerDm.data.answer) {
+				await ctx.sendTextReply(answerDm.data.answer);
 			}
 		}
 
 		// Handle group messages
 		if (ctx.isGroup()) {
 			console.log("Handling group message");
-			const xmtpMessage = ctx.message as GroupUpdatedMessage;
-			const xmtpMembers = await ctx.conversation.members();
-
-			// Handle group metadata updates
-			if (ctx.message.contentType?.typeId === "group_updated") {
-				const groupUpdates = getGroupUpdates({
-					group: ctx.conversation as Group,
-					xmtpMessage,
-					xmtpMembers,
-					agentAddress,
-					agentInboxId: ctx.client.inboxId,
-				});
-
-				// update group metadata
-				await fetch(`${env.BACKEND_URL}/group/metadata`, {
-					method: "PUT",
-					headers: {
-						"Content-Type": "application/json",
-						"x-api-key": env.BACKEND_API_KEY,
-					},
-					body: JSON.stringify(groupUpdates),
-				});
-			}
 
 			// Handle reply to the agent
-			const answer = await fetch(`${env.BACKEND_URL}/group/reply`, {
+			const responseGroup = await fetch(askAgentUrl, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
-					"x-api-key": env.BACKEND_API_KEY,
+					"x-api-secret": env.BACKEND_API_KEY,
 				},
 				body: JSON.stringify({
-					message: messageContent,
-					conversationId,
-					senderAddress,
-					members: xmtpMembers,
+					question: messageContent,
 				}),
-			}).then(async (res) => await res.json());
-			if (answer.answer) {
-				await ctx.sendTextReply(answer.answer);
+			});
+
+			if (!responseGroup.ok) {
+				console.error("❌ Unable to get group response");
 			}
-		}
-	});
 
-	xmtpAgent.on("group", async (ctx) => {
-		const conversationId = ctx.conversation.id;
-		console.log("Group received event", conversationId);
-		const { group, isNew, welcomeMessage } = await fetch(
-			`${env.BACKEND_URL}/group`,
-			{
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					"x-api-key": env.BACKEND_API_KEY,
-				},
-			},
-		).then(async (res) => await res.json());
-
-		// If is new group, send welcome message and actions
-		if (isNew && welcomeMessage) {
-			console.log("Sending welcome message to new group", group.id);
-			await ctx.conversation.send(welcomeMessage);
+			const answerGroup = (await responseGroup.json()) as AskResponse;
+			if (answerGroup.status === "ok" && answerGroup.data.answer) {
+				await ctx.sendTextReply(answerGroup.data.answer);
+			}
 		}
 	});
 
