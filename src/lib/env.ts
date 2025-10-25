@@ -11,6 +11,7 @@ const envSchema = z.object({
 
 	// Fid for the agent
 	AGENT_FID: z.string().min(1),
+	AGENT_USERNAME: z.string().min(1),
 
 	// XMTP Agent
 	XMTP_ENV: z

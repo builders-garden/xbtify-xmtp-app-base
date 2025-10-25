@@ -1,15 +1,22 @@
 import {
 	Agent,
+	type Client,
 	type DecodedMessage,
 	type Group,
 	type GroupMember,
 	IdentifierKind,
 	type Signer,
 } from "@xmtp/agent-sdk";
+import type { GroupUpdated } from "@xmtp/content-type-group-updated";
 import { GroupUpdatedCodec } from "@xmtp/content-type-group-updated";
+import type { Reaction } from "@xmtp/content-type-reaction";
 import { ReactionCodec } from "@xmtp/content-type-reaction";
-import { RemoteAttachmentCodec } from "@xmtp/content-type-remote-attachment";
+import {
+	type RemoteAttachment,
+	RemoteAttachmentCodec,
+} from "@xmtp/content-type-remote-attachment";
 import { type Reply, ReplyCodec } from "@xmtp/content-type-reply";
+import type { WalletSendCallsParams } from "@xmtp/content-type-wallet-send-calls";
 import { WalletSendCallsCodec } from "@xmtp/content-type-wallet-send-calls";
 import { fromString } from "uint8arrays";
 import {
@@ -261,4 +268,119 @@ export const getGroupUpdates = ({
 		removedInboxes: [],
 		membersToAdd: [],
 	};
+};
+
+/**
+ * Check if a message is a reply to the agent
+ *
+ * @param message - The decoded XMTP message
+ * @param agentInboxId - The agent's inbox ID
+ * @param client - The XMTP client instance
+ * @returns Promise<boolean> - Whether the message is a reply to the agent
+ */
+export async function isReplyToAgent(
+	message: DecodedMessage,
+	agentInboxId: string,
+	client: Client<
+		| string
+		| Reply
+		| WalletSendCallsParams
+		| GroupUpdated
+		| Reaction
+		| RemoteAttachment
+	>,
+): Promise<boolean> {
+	// Check if the message is a reply type
+	if (message.contentType && message.contentType.typeId === "reply") {
+		try {
+			// Check the parameters for the reference message ID
+			const parameters = message.parameters;
+			if (!parameters || !parameters.reference) {
+				return false;
+			}
+
+			const referenceMessageId = parameters.reference;
+
+			// Get the conversation to find the referenced message
+			const conversation = await client.conversations.getConversationById(
+				message.conversationId,
+			);
+			if (!conversation) {
+				console.error(
+					`Conversation not found ${message.conversationId} on reply to message ${referenceMessageId}`,
+				);
+				return false;
+			}
+
+			// Get recent messages to find the referenced one
+			const messages = await conversation.messages();
+			const referencedMessage = messages.find(
+				(msg) => msg.id === referenceMessageId,
+			);
+			if (!referencedMessage) {
+				return false;
+			}
+
+			// Check if the referenced message was sent by the agent
+			const isReplyToAgent =
+				referencedMessage.senderInboxId.toLowerCase() ===
+				agentInboxId.toLowerCase();
+
+			return isReplyToAgent;
+		} catch (error) {
+			console.error(
+				"Error checking if message is a reply to the agent:",
+				error,
+			);
+			return false;
+		}
+	}
+	return false;
+}
+
+/**
+ * Check if the message is a reply to the agent
+ *
+ * @param message - The decoded XMTP message
+ * @returns True if the message is a reply to the agent, false otherwise
+ */
+export const checkIfMessageIsReplyToAgent = async ({
+	message,
+	agentInboxId,
+	agentUsername,
+	client,
+}: {
+	message: DecodedMessage;
+	agentInboxId: string;
+	agentUsername: string;
+	client: Client<
+		| string
+		| Reply
+		| WalletSendCallsParams
+		| GroupUpdated
+		| Reaction
+		| RemoteAttachment
+	>;
+}): Promise<boolean> => {
+	const messageContent = extractMessageContent(message);
+
+	// Safety check for empty content
+	if (!messageContent || messageContent.trim() === "") {
+		return false;
+	}
+
+	// 1. check if the message tags the agent via username
+	const lowerMessage = messageContent.toLowerCase().trim().normalize();
+	const patternAgentUsername = new RegExp(
+		`@${agentUsername.toLowerCase().trim().normalize()}`,
+	);
+	const match = lowerMessage.match(patternAgentUsername);
+	if (match) {
+		return true;
+	}
+
+	// 2. check if the message is a reply to the agent
+	const isReply = await isReplyToAgent(message, agentInboxId, client);
+
+	return isReply;
 };

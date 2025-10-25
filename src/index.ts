@@ -4,7 +4,11 @@ import type { AskResponse } from "./lib/backend.types.js";
 import { env } from "./lib/env.js";
 import { eyesReactionMiddleware } from "./xmtp/middlewares.js";
 import type { ThinkingReactionContext } from "./xmtp/xmtp.types.js";
-import { createXmtpAgent, extractMessageContent } from "./xmtp/xmtp.utils.js";
+import {
+	checkIfMessageIsReplyToAgent,
+	createXmtpAgent,
+	extractMessageContent,
+} from "./xmtp/xmtp.utils.js";
 
 async function main() {
 	const askAgentUrl = `${env.BACKEND_URL}/api/agent/${env.AGENT_FID}/ask`;
@@ -37,13 +41,13 @@ async function main() {
 			return;
 		}
 
-		await thinkingContext.helpers.addThinkingEmoji();
-
 		const messageContent = extractMessageContent(ctx.message);
 
 		// Handle DM messages
 		if (ctx.isDm()) {
-			console.log("Handling DM message");
+			console.log(`Message ${ctx.message.id} is a DM, generating answer...`);
+			await thinkingContext.helpers.addThinkingEmoji();
+
 			const responseDm = await fetch(askAgentUrl, {
 				method: "POST",
 				headers: {
@@ -59,31 +63,51 @@ async function main() {
 			if (answerDm.status === "ok" && answerDm.data.answer) {
 				await ctx.sendTextReply(answerDm.data.answer);
 			}
+
+			await thinkingContext.helpers.removeThinkingEmoji();
 		}
 
 		// Handle group messages
 		if (ctx.isGroup()) {
 			console.log("Handling group message");
 
-			// Handle reply to the agent
-			const responseGroup = await fetch(askAgentUrl, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					"x-api-secret": env.BACKEND_API_KEY,
-				},
-				body: JSON.stringify({
-					question: messageContent,
-				}),
+			const agentInboxId = xmtpAgent.client.inboxId;
+			const isReply = await checkIfMessageIsReplyToAgent({
+				message: ctx.message,
+				agentInboxId,
+				agentUsername: env.AGENT_USERNAME,
+				client: xmtpAgent.client,
 			});
 
-			if (!responseGroup.ok) {
-				console.error("❌ Unable to get group response");
-			}
+			if (isReply) {
+				console.log(
+					`Message ${ctx.message.id} is a reply to the agent, generating answer...`,
+				);
+				await thinkingContext.helpers.addThinkingEmoji();
 
-			const answerGroup = (await responseGroup.json()) as AskResponse;
-			if (answerGroup.status === "ok" && answerGroup.data.answer) {
-				await ctx.sendTextReply(answerGroup.data.answer);
+				// Handle reply to the agent
+				const responseGroup = await fetch(askAgentUrl, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						"x-api-secret": env.BACKEND_API_KEY,
+					},
+					body: JSON.stringify({
+						question: messageContent,
+					}),
+				});
+
+				if (!responseGroup.ok) {
+					console.error("❌ Unable to get group response");
+				}
+
+				const answerGroup = (await responseGroup.json()) as AskResponse;
+				console.log(`Answer group: ${JSON.stringify(answerGroup)}`);
+				if (answerGroup.status === "ok" && answerGroup.data.answer) {
+					await ctx.sendTextReply(answerGroup.data.answer);
+				}
+
+				await thinkingContext.helpers.removeThinkingEmoji();
 			}
 		}
 	});

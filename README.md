@@ -18,46 +18,6 @@ It then hits the ai service to answer to dm and group messages.
 
 - Node.js 20+
 - pnpm
-- nixpacks
-
-## Kubernetes (Minikube) On-demand Provisioning
-
-### Provisioning plan (origin)
-
-- Goal: spin up one Pod per paying user, each isolated by its own Secret and PVC, running this repo's image.
-- Flow: payment success → backend provisioner creates Secret, PVC, Deployment → agent starts with user-specific env and persistent DB.
-- Components per user: Kubernetes Secret (runtime env), PVC (XMTP DB), Deployment (1 replica, mounts PVC at `/data`).
-
-### Build image into Minikube
-
-```bash
-pnpm k8s:build-minikube
-```
-
-### Create namespace and RBAC
-
-```bash
-pnpm k8s:ns
-```
-
-### Provision a per-user agent
-
-```bash
-# Ensure your kubeconfig points to minikube context
-tsx src/provisioner/cli.ts create \
-  --fid 12345 \
-  --backend-url https://your-backend.example \
-  --backend-api-key sk_test_xxx \
-  --xmtp-mnemonic "word1 word2 ..." \
-  --xmtp-env dev \
-  --xmtp-db-key 11973168e34839f9d31749ad77204359c5c39c404e1154eacb7f35a867ee47de
-```
-
-### Deprovision
-
-```bash
-tsx src/provisioner/cli.ts delete --fid 12345
-```
 
 ## Getting Started
 
@@ -76,4 +36,4 @@ tsx src/provisioner/cli.ts delete --fid 12345
 - `RAILWAY_VOLUME_MOUNT_PATH` (optional): Directory for the DB file (e.g. `/data`).
 
 Notes:
-- The agent currently uses `XMTP_MNEMONIC` for signing. The provisioner supports injecting a private key as `XMTP_PRIVATE_KEY`, but the runtime agent code will only read `XMTP_MNEMONIC` unless updated.
+- The agent currently uses `XMTP_MNEMONIC` for signing.

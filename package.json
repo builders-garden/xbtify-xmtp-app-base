@@ -8,12 +8,7 @@
     "start": "node ./dist/index.js",
     "typecheck": "tsc --noEmit",
     "check": "biome check --write .",
-    "format": "npx @biomejs/biome format --write ./src",
-    "k8s:build-minikube": "bash ./scripts/build-minikube.sh",
-    "k8s:ns": "kubectl apply -f ./k8s/namespace-rbac.yaml",
-    "k8s:provision": "tsx ./src/provisioner/cli.ts create",
-    "k8s:deprovision": "tsx ./src/provisioner/cli.ts delete",
-    "provisioner:serve": "tsx ./src/provisioner/server.ts"
+    "format": "npx @biomejs/biome format --write ./src"
   },
   "keywords": [],
   "author": "",
@@ -21,7 +16,6 @@
   "description": "",
   "dependencies": {
     "@xmtp/agent-sdk": "^1.1.2",
-    "@kubernetes/client-node": "^0.21.0",
     "@xmtp/content-type-group-updated": "^2.0.2",
     "@xmtp/content-type-primitives": "^2.0.2",
     "@xmtp/content-type-reaction": "^2.0.2",
